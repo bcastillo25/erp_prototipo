@@ -1,0 +1,9 @@
+export 'email.dart';
+export 'username.dart';
+export 'password.dart';
+export 'confir_password.dart';
+export 'cantidad.dart';
+export 'precio.dart';
+export 'codigo.dart';
+export 'direccion.dart';
+export 'telefono.dart';
