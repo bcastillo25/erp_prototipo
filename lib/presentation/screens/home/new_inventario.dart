@@ -111,26 +111,26 @@ class _FormViewState extends State<_FormView> {
   final db = DatabaseHelper();
 
   createOrUpdateProducto() async {
-    final existe = await db.existeCodigo(codigodp.text);
+    // final existe = await db.existeCodigo(codigodp.text);
     
     if (widget.producto == null) {
-      if (existe) {
-        showDialog(
-          // ignore: use_build_context_synchronously
-          context: context, 
-          builder: (context) => AlertDialog(
-            title: Text('Error'),
-            content: Text('El código ${codigodp.text} ya está registrado.'),
-            actions: [
-              TextButton(
-                onPressed: () => context.pop(), 
-                child: Text('Acepar')
-              )
-            ],
-          ),
-        );
-        return;
-      }
+      // if (existe) {
+      //   showDialog(
+      //     // ignore: use_build_context_synchronously
+      //     context: context, 
+      //     builder: (context) => AlertDialog(
+      //       title: Text('Error'),
+      //       content: Text('El código ${codigodp.text} ya está registrado.'),
+      //       actions: [
+      //         TextButton(
+      //           onPressed: () => context.pop(), 
+      //           child: Text('Acepar')
+      //         )
+      //       ],
+      //     ),
+      //   );
+      //   return;
+      // }
       await db.createProduct(
         Inventariodb(
           codigo: codigodp.text, 

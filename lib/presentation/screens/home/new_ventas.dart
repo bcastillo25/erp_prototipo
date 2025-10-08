@@ -1,4 +1,5 @@
 import 'package:erp_prototipo/SQLite/database_helper.dart';
+import 'package:erp_prototipo/infrastructure/JSON/jsons.dart';
 import 'package:erp_prototipo/presentation/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,113 +13,98 @@ class NewVentas extends StatefulWidget {
 }
 
 class _NewVentasState extends State<NewVentas> {
+  final DatabaseHelper db = DatabaseHelper();
 
-  List<Map<String, dynamic>> clientes = [];
-  List<Map<String, dynamic>> productos = [];
-  List<Map<String, dynamic>> detalles = [];
+  Clientesdb? clienteSeleccionado;
+  Inventariodb? productoSeleccionado;
+  final cantidadController = TextEditingController(text: '1');
 
-  Map<String, dynamic>? clienteSeleccionado;
-  Map<String, dynamic>? productoSeleccionado;
-  int cantidad = 1;
+  List<Map<String, dynamic>> detalleFactura = [];
 
   double subtotal = 0;
   double iva = 0;
   double total = 0;
 
-  TextEditingController clienteController = TextEditingController();
-  TextEditingController productoController = TextEditingController();
-  TextEditingController cantidadController = TextEditingController(text: '1');
-
-  double calcularSubtotal(List<Map<String, dynamic>> items) {
-    return items.fold(0, (sum, item) => sum + item['precio'] * item['cantidad']);
+  Future<void> calcularTotales() async {
+    subtotal = detalleFactura.fold(0, (s, item) => s + item['subtotal']);
+    iva = subtotal * 0.15 ;
+    total = subtotal + iva;
+    setState(() {});
   }
 
-  double calcularIVA(double subtotal) => subtotal * 0.12;
-
-  double calcularTotal(double subtotal) => subtotal + calcularIVA(subtotal);
-
-  @override
-  void initState() {
-    db = DatabaseHelper();
-    super.initState();
-    cargarDatos();
-  }
-
-  late DatabaseHelper db;
-
-  Future<void> cargarDatos() async {
-    
-    final cli = await db.getClientesVentas();
-    final prod = await db.getProductosVentas();
-    setState(() {
-      clientes = cli;
-      productos = prod;
-    });
-  }
-
-  void agregarProducto() async {
-    if ( productoSeleccionado == null) return;
-    int stock = productoSeleccionado!['cantidad'];
-    if (cantidad > stock) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cantidad excede el stock disponible.')));
+  Future<void> agregarProducto() async {
+    if ( productoSeleccionado == null || cantidadController.text.isEmpty) return;
+    int cantidad = int.parse(cantidadController.text);
+    if (cantidad > productoSeleccionado!.cantidad) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cantidad excede el stock disponible.')));
       return;
     }
 
-    detalles.add({
-      'codigo': productoSeleccionado!['codigo'],
-      'producto': productoSeleccionado!['producto'],
-      'precio': productoSeleccionado!['precio'],
-      'cantidad': cantidad,
+    double subtotalitem = cantidad * productoSeleccionado!.precio;
+
+    setState(() {
+      detalleFactura.add({
+        'codigo': productoSeleccionado!.codigo,
+        'producto': productoSeleccionado!.producto,
+        'cantidad': cantidad,
+        'precio': productoSeleccionado!.precio,
+        'subtotal': subtotalitem
+      });
     });
 
-    int nuevostock = stock - cantidad;
-    await db.updateStock(productoSeleccionado!['codigo'], nuevostock);
+    await calcularTotales();
+    cantidadController.clear();
+    productoSeleccionado = null;
+  }
 
-    final prod = await db.getProductosVentas();
-    setState(() {
-      productos = prod;
-      productoSeleccionado = productos.firstWhere(
-        (p) => p['codigo'] == productoSeleccionado!['codigo'],
-        // orElse: () => null,
+  Future<void> guardarFactura() async {
+    if (clienteSeleccionado == null || detalleFactura.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione cliente y agregue productos'))
+      );
+      return;
+    }
+
+    final facturaId = await db.createFactura(
+      Facturaventadb(
+        clienteid: int.parse(clienteSeleccionado!.cedula), 
+        fecha: DateTime.now().toString(), 
+        subtotal: subtotal, 
+        iva: iva, 
+        total: total
+      )
+    );
+
+    for (var item in detalleFactura) {
+      await db.createFacturaDetalleVenta(
+        Facturavendetdb(
+          facid: facturaId, 
+          proid: item['codigo'], 
+          cantidad: item['cantidad'], 
+          preciouni: item['precio'], 
+          subtotal: item['subtotal']
+        )
       );
 
-      subtotal = calcularSubtotal(detalles);
-      iva = calcularIVA(subtotal);
-      total = calcularTotal(subtotal);
-
-      cantidad = 1;
-      cantidadController.text = '1';
-    });
-
-    detalles.add({
-      'codigo': productoSeleccionado!['codigo'],
-      'producto': productoSeleccionado!['producto'],
-      'precio': productoSeleccionado!['precio'],
-      'cantidad': cantidad,
-    });
-
-    subtotal = calcularSubtotal(detalles);
-    iva = calcularIVA(subtotal);
-    total = calcularTotal(subtotal);
+      int nuevostock = productoSeleccionado!.cantidad ;
+      await db.updateStock(item['codigo'], nuevostock);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Factura guardada exitosamente'))
+    );
 
     setState(() {
-      cantidad = 1;
-      cantidadController.text = '1';
+      detalleFactura.clear();
+      subtotal = iva = total = 0;
+      clienteSeleccionado =  null;
     });
-  }
-
-  List<Map<String, dynamic>> filtrarClientes(String filtro) {
-    return clientes.where((clientes) => clientes['apellido'].toLowerCase().contains(filtro.toLowerCase())).toList();
-  }
-
-  List<Map<String, dynamic>> filtrarProductos(String filtro) {
-    return productos.where((products) => products['producto'].toLowerCase().contains(filtro.toLowerCase())).toList();
   }
 
   @override
   Widget build(BuildContext context) {
 
-    int stockDisponible = productoSeleccionado?['cantidad'] ?? 1;
+    int stockDisponible = productoSeleccionado?.cantidad ?? 1;
 
     final textStyle = Theme.of(context).textTheme;
     Color getColor(Set<WidgetState> states) {
@@ -135,128 +121,111 @@ class _NewVentasState extends State<NewVentas> {
             child: Text('Ventas',
               style: textStyle.titleMedium)),
         ),
-        body: SingleChildScrollView(
-          physics: ClampingScrollPhysics(),
-          child: Column(
-            children: [
-              Container(
-                alignment: Alignment(0, 0),
-                padding: EdgeInsets.fromLTRB(5,2,50,5),
-                width: double.infinity,
-                height: 60,
-                child: Text('Generar nueva factura',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),)
-              ),
-              Container(
-                width: 440,
-                height: 265,
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Spacer(),
-                        IconButton(
-                          onPressed: (){
-                            context.push('/new-clientes');
-                          }, 
-                          icon: Icon(Icons.add),
-                          iconSize: 30,)
-                      ],
-                    ),
-                    // Text('Cliente', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),),
-                    Row(
-                      children: [
-                        Container(
-                          width: 418,
-                          height: 60,
-                          padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
-                          child: Autocomplete<Map<String, dynamic>>(
-                            displayStringForOption: (c) => c['apellido'],
-                            optionsBuilder: (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text == '') {
-                                return const Iterable<Map<String, dynamic>>.empty();
-                              }
-                              return filtrarClientes(textEditingValue.text);
-                            },
-                            onSelected: (Map<String, dynamic> selection) {
-                              setState(() {
-                                clienteSeleccionado = selection;
-                                clienteController.text = selection['apellido'];
-                              });
-                            },
-                            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                              clienteController = controller;
-                              return CustomTextFormField(
-                                controller: controller,
-                                label: 'Buscar o seleccionar cliente',
-                              );
-                            },
-                          ),
-                        )
-                      ],
-                    ),
-                    // Text('Seleccione el producto', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),),
-                    SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      height: 60,
-                      padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
-                      child: Autocomplete<Map<String, dynamic>>(
-                        displayStringForOption: (p) => p['producto'],
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text == '') {
-                          return const Iterable<Map<String, dynamic>>.empty();
-                        }
-                        return filtrarProductos(textEditingValue.text);
-                        },
-                        onSelected: (Map<String, dynamic> selection) {
+        body: Column(
+          children: [
+            Container(
+              alignment: Alignment(0, 0),
+              padding: EdgeInsets.fromLTRB(5,2,50,5),
+              width: double.infinity,
+              height: 60,
+              child: Text('Generar nueva factura',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),)
+            ),
+            Container(
+              width: 440,
+              height: 265,
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Spacer(),
+                      IconButton(
+                        onPressed: (){
+                          context.push('/new-clientes');
+                        }, 
+                        icon: Icon(Icons.add),
+                        iconSize: 30,)
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 418,
+                        height: 60,
+                        padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
+                        child: FutureBuilder<List<Clientesdb>>(
+                          future: db.getCliente(), 
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const CircularProgressIndicator();
+                            return DropdownButtonFormField<Clientesdb>(
+                              decoration: InputDecoration(labelText: 'Seleccione Cliente'),
+                              items: snapshot.data!.map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text('${c.nombre} ${c.apellido}'),
+                              )).toList(), 
+                              onChanged: (value) {
+                                setState(() {
+                                  clienteSeleccionado = value;
+                                });
+                              },
+                              value: clienteSeleccionado,
+                            );
+                          },
+                        ),
+                      )
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
+                    child: FutureBuilder<List<Inventariodb>>(
+                      future: db.getProducts(), 
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const CircularProgressIndicator();
+                        return DropdownButtonFormField<Inventariodb>(
+                          decoration: InputDecoration(labelText: 'Seleccione Producto'),
+                          items: snapshot.data!.map((p) => DropdownMenuItem(
+                            value: p,
+                            child: Text('${p.producto} - Stock: ${p.cantidad}'))
+                        ).toList(), 
+                        onChanged: (value) {
                           setState(() {
-                            productoSeleccionado = selection;
-                            productoController.text = selection['producto'];
-                            stockDisponible = selection['cantidad'];
-                            cantidadController.text = '1';
+                            productoSeleccionado = value;
                           });
-                        },
-                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        productoController = controller;
-                        return CustomTextFormField(
-                          controller: controller,
-                          label: 'Buscar o seleccionar producto',
+                        }, 
+                        value: productoSeleccionado,
                         );
                       },
+                    )
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
+                    child: CustomTextFormField(
+                      controller: cantidadController,
+                      label: 'Cantidad',
+                      keyboardType: TextInputType.number,
+                      enable: productoSeleccionado != null,
                     ),
-                    ),
-                    SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      height: 60,
-                      padding: EdgeInsets.fromLTRB(0, 2, 0, 5),
-                      child: CustomTextFormField(
-                        controller: cantidadController,
-                        label: 'Cantidad',
-                        keyboardType: TextInputType.number,
-                        onChanged: (val) {
-                          final valor = int.tryParse(val) ?? 1;
-                          setState(() {
-                            cantidad = valor > stockDisponible ? stockDisponible : valor;
-                            cantidadController.text = cantidad.toString();
-                          });
-                        },
-                        enable: productoSeleccionado != null,
-                      ),
-                    ),
-                  ]
-                ),
+                  ),
+                ]
               ),
-              ElevatedButton(
-                onPressed: agregarProducto, 
-                child: Text('Agregar')
-              ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.zero,
+            ),
+            ElevatedButton.icon(
+              onPressed: agregarProducto, 
+              icon: Icon(Icons.add),
+              label: Text('Agregar Producto')
+            ),
+            SizedBox(height: 10),
+            Container(
+              padding: EdgeInsets.zero,
+              child: SingleChildScrollView(
                 child: DataTable(
                   dividerThickness: 2,
                   dataRowMinHeight: 47,
@@ -307,60 +276,61 @@ class _NewVentasState extends State<NewVentas> {
                   }).toList(),
                 ),
               ),
-                Row(
-                  children: [
-                    SizedBox(width: 310,),
-                    DataTable(
-                      dividerThickness: 1,
-                      dataRowMinHeight: 47,
-                      headingRowHeight: 47,
-                      columnSpacing: 5,
-                      dataRowColor: WidgetStateColor.resolveWith(getColor),
-                      headingRowColor: WidgetStateColor.resolveWith(getColor),
-                      border: TableBorder(
-                        left: BorderSide(width: 2),
-                        right: BorderSide(width: 2),
-                        bottom: BorderSide(width: 2),
-                        verticalInside: BorderSide(width: 2),
-                        horizontalInside: BorderSide(width: 2)
-                      ),
-                      columns: [
-                        DataColumn(
-                          label: Text('Subtotal', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                          numeric: true
-                        ),
-                        DataColumn(
-                          label: Text('\$${subtotal.toStringAsFixed(2)}'),
-                          numeric: true
-                        ),
-                      ], 
-                      rows: [
-                        DataRow(cells: [
-                          DataCell(Text('IVA 15%', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black))),
-                          DataCell(Text('\$${iva.toStringAsFixed(2)}')),
-                        ]),
-                        DataRow(cells: [
-                          DataCell(Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black))),
-                          DataCell(Text('\$${total.toStringAsFixed(2)}')),
-                        ])
-                      ]
+            ),
+              Row(
+                children: [
+                  SizedBox(width: 310,),
+                  DataTable(
+                    dividerThickness: 1,
+                    dataRowMinHeight: 47,
+                    headingRowHeight: 47,
+                    columnSpacing: 6,
+                    dataRowColor: WidgetStateColor.resolveWith(getColor),
+                    headingRowColor: WidgetStateColor.resolveWith(getColor),
+                    border: TableBorder(
+                      left: BorderSide(width: 2),
+                      right: BorderSide(width: 2),
+                      bottom: BorderSide(width: 2),
+                      verticalInside: BorderSide(width: 2),
+                      horizontalInside: BorderSide(width: 2)
                     ),
-                  ],
-                ),
-                SizedBox(height: 180),
-                Container(
-                  width: double.infinity,
-                  height: 60,
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: CustomFilledButton(
-                    buttonColor: Color.fromARGB(228, 51, 128, 124),
-                    text: 'Generar Factura',
-                    textStyle: textStyle.titleMedium,
-                    onPressed: (){},
+                    columns: [
+                      DataColumn(
+                        label: Text('Subtotal', textAlign: TextAlign.left,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+                      ),
+                      DataColumn(
+                        label: Text('\$${subtotal.toStringAsFixed(2)}'),
+                      ),
+                    ], 
+                    rows: [
+                      DataRow(cells: [
+                        DataCell(Text('IVA 15%', textAlign: TextAlign.left,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black))),
+                        DataCell(Text('\$${iva.toStringAsFixed(2)}')),
+                      ]),
+                      DataRow(cells: [
+                        DataCell(Text('Total', textAlign: TextAlign.left,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black))),
+                        DataCell(Text('\$${total.toStringAsFixed(2)}')),
+                      ])
+                    ]
                   ),
+                ],
+              ),
+              SizedBox(height: 180),
+              Container(
+                width: double.infinity,
+                height: 60,
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: CustomFilledButton(
+                  buttonColor: Color.fromARGB(228, 51, 128, 124),
+                  text: 'Generar Factura',
+                  textStyle: textStyle.titleMedium,
+                  onPressed: (){},
                 ),
-            ]
-          ),
+              ),
+          ]
         ),
       ),
     );

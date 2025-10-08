@@ -1,5 +1,5 @@
 class Facturavendetdb {
-    final int id;
+    final int? id;
     final int facid;
     final int proid;
     final int cantidad;
@@ -7,7 +7,7 @@ class Facturavendetdb {
     final double subtotal;
 
     Facturavendetdb({
-        required this.id,
+        this.id,
         required this.facid,
         required this.proid,
         required this.cantidad,

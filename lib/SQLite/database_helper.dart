@@ -373,20 +373,20 @@ class DatabaseHelper {
     );
   }
   // Metodos CRUD FacturaCabecera
-    Future<List<Facturacompradb>> searchFactura(String keyword) async {
+    Future<List<Facturaventadb>> searchFactura(String keyword) async {
     final Database db = await initDB();
     List<Map<String, Object?>> searchResult = await db.
       rawQuery("select * from facturaveta where id or clienteid LIKE ?", ["%$keyword%"]);
-    return searchResult.map((e) => Facturacompradb.fromJson(e)).toList();
+    return searchResult.map((e) => Facturaventadb.fromJson(e)).toList();
   }
 
-  Future<List<Facturacompradb>> getFacturas() async {  
+  Future<List<Facturaventadb>> getFacturas() async {  
     final Database db = await initDB();
     List<Map<String, Object?>> result = await db.query('facturaventa');
-    return result.map((e) => Facturacompradb.fromJson(e)).toList();
+    return result.map((e) => Facturaventadb.fromJson(e)).toList();
   }
 
-  Future<int> createFactura(Facturacompradb factura) async {
+  Future<int> createFactura(Facturaventadb factura) async {
     final Database db = await initDB();
     return db.insert('facturaventa', factura.toJson());
   }
@@ -438,7 +438,7 @@ class DatabaseHelper {
     Future<List<Facturacompradb>> searchFacturaCompra(String keyword) async {
     final Database db = await initDB();
     List<Map<String, Object?>> searchResult = await db.
-      rawQuery("select * from facturacompra where id or clienteid LIKE ?", ["%$keyword%"]);
+      rawQuery("select * from facturacompra where id or provid LIKE ?", ["%$keyword%"]);
     return searchResult.map((e) => Facturacompradb.fromJson(e)).toList();
   }
 
@@ -461,7 +461,7 @@ class DatabaseHelper {
   Future<int> updateFacturaCompra(facturacompra, id) async {
     final Database db = await initDB();
     return db.rawUpdate(
-      'update facturacompra set clienteid = ? where id = ?',
+      'update facturacompra set provid = ? where id = ?',
       [categoria, id]
     );
   }

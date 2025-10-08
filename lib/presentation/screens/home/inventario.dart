@@ -118,6 +118,7 @@ class _InventarioState extends State<Inventario> {
             ),
             SizedBox(height: 10),
             Text('Código: ${item.codigo}'),
+            Text('Producto: ${item.producto}'),
             Text('Precio: \$${item.precio}'),
             Text('Stock: ${item.cantidad} unidades'),
             Text('Categoria: ${item.proid}'),
