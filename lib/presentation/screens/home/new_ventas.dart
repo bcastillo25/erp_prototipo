@@ -223,60 +223,60 @@ class _NewVentasState extends State<NewVentas> {
               label: Text('Agregar Producto')
             ),
             SizedBox(height: 10),
-            Container(
-              padding: EdgeInsets.zero,
-              child: SingleChildScrollView(
-                child: DataTable(
-                  dividerThickness: 2,
-                  dataRowMinHeight: 47,
-                  headingRowHeight: 47,
-                  columnSpacing: 40,
-                  showBottomBorder: true,
-                  dataRowColor: WidgetStateColor.resolveWith(getColor),
-                  headingRowColor: WidgetStateColor.resolveWith(getColor),
-                  border: TableBorder(
-                    top: BorderSide(width: 2),
-                    left: BorderSide(width: 2),
-                    right: BorderSide(width: 2),
-                    bottom: BorderSide(width: 2),
-                    verticalInside: BorderSide(width: 2),
-                    horizontalInside: BorderSide(width: 2)
-                  ),
-                  columns: [
-                    DataColumn(
-                      label: Text('Código', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                      numeric: true,
-                    ),
-                    DataColumn(
-                      label: Text('Producto', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                      numeric: true,
-                    ),
-                    DataColumn(
-                      label: Text('Cantidad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                      numeric: true,
-                    ),
-                    DataColumn(
-                      label: Text('Precio', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                      numeric: true
-                    ),
-                    DataColumn(
-                      label: Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                      numeric: true
-                    ),
-                  ], 
-                  rows: detalles.map((item){
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(item['codigo'])),
-                        DataCell(Text(item['producto'])),
-                        DataCell(Text(item['cantidad'].toString())),
-                        DataCell(Text(item['precio'].toStringAsFixed(2))),
-                        DataCell(Text((item['precio'] * item['cantidad']).toStringAsFixed(2))),
-                    ]);
-                  }).toList(),
-                ),
-              ),
-            ),
+            // Container(
+            //   padding: EdgeInsets.zero,
+            //   child: SingleChildScrollView(
+            //     child: DataTable(
+            //       dividerThickness: 2,
+            //       dataRowMinHeight: 47,
+            //       headingRowHeight: 47,
+            //       columnSpacing: 40,
+            //       showBottomBorder: true,
+            //       dataRowColor: WidgetStateColor.resolveWith(getColor),
+            //       headingRowColor: WidgetStateColor.resolveWith(getColor),
+            //       border: TableBorder(
+            //         top: BorderSide(width: 2),
+            //         left: BorderSide(width: 2),
+            //         right: BorderSide(width: 2),
+            //         bottom: BorderSide(width: 2),
+            //         verticalInside: BorderSide(width: 2),
+            //         horizontalInside: BorderSide(width: 2)
+            //       ),
+            //       columns: [
+            //         DataColumn(
+            //           label: Text('Código', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+            //           numeric: true,
+            //         ),
+            //         DataColumn(
+            //           label: Text('Producto', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+            //           numeric: true,
+            //         ),
+            //         DataColumn(
+            //           label: Text('Cantidad', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+            //           numeric: true,
+            //         ),
+            //         DataColumn(
+            //           label: Text('Precio', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+            //           numeric: true
+            //         ),
+            //         DataColumn(
+            //           label: Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+            //           numeric: true
+            //         ),
+            //       ], 
+            //       rows: detalles.map((item){
+            //         return DataRow(
+            //           cells: [
+            //             DataCell(Text(item['codigo'])),
+            //             DataCell(Text(item['producto'])),
+            //             DataCell(Text(item['cantidad'].toString())),
+            //             DataCell(Text(item['precio'].toStringAsFixed(2))),
+            //             DataCell(Text((item['precio'] * item['cantidad']).toStringAsFixed(2))),
+            //         ]);
+            //       }).toList(),
+            //     ),
+            //   ),
+            // ),
               Row(
                 children: [
                   SizedBox(width: 310,),
